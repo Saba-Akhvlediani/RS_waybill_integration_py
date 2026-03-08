@@ -120,3 +120,28 @@ class XmlBuilder:
             's_user_ids': '',
             'comment': '',
         }
+
+
+    def build_get_buyer_waybills(self, su, sp, start_date, end_date, seller_tin='', statuses=''):
+        """პარამეტრები რომ მივიღოთ ზედნადებების სია (ვართ მყიდველები)"""
+        return {
+            'su': su,
+            'sp': sp,
+            'itypes': '',
+            'seller_tin': seller_tin,
+            'statuses': statuses,
+            'car_number': '',
+            'begin_date_s': start_date,
+            'begin_date_e': end_date,
+            'create_date_s': start_date,
+            'create_date_e': end_date,
+            'driver_tin': '',
+            'delivery_date_s': start_date,
+            'delivery_date_e': end_date,
+            'full_amount': None,
+            'waybill_number': '',
+            'close_date_s': start_date,
+            'close_date_e': end_date,
+            's_user_ids': '',
+            'comment': '',
+        }

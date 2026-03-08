@@ -1,0 +1,376 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+connection.py
+constants.py
+rs_client.py
+test.py
+xml_builder.py
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".gitignore">
+venv/
+.idea/
+__pycache__/
+*.pyc
+</file>
+
+<file path="connection.py">
+from zeep import Client      # reads the wsdl, builds python methods automatically
+from zeep.exceptions import Fault
+from datetime import datetime
+import logging
+from dataclasses import dataclass
+from typing import Optional
+from xml.etree import ElementTree as ET   #
+
+
+
+logger = logging.getLogger(__name__)
+
+#wsdl - web service description language
+WSDL = "https://services.rs.ge/WayBillService/WayBillService.asmx?WSDL"
+
+class WaybillType:
+    INTERNAL_TRANSPORT = 1
+    WITH_TRANSPORT = 2
+    WITHOUT_TRANSPORT = 3
+    DISTRIBUTION = 4
+    SUB_WAYBILL = 6
+    RETURN = 5
+
+class CitizenCheck:
+    FOREIGNER = 0
+    GEORGIAN = 1
+
+
+class VatType:
+    STANDARD = 0
+    ZERO = 1
+    EXEMPT = 2
+
+class WaybillStatus:
+    SAVED = 0
+    ACTIVE = 1
+    COMPLETED = 2
+    SENT_TO_CARRIER = 8
+    DELETED = -1
+    CANCELED = -2
+
+class TransportCostPayer:
+    BUYER = 1
+    SELLER = 2
+
+
+client = Client(wsdl="https://services.rs.ge/WayBillService/WayBillService.asmx?WSDL")
+
+
+print(client.wsdl.dump())
+result = client.service.chek('ARCHIL', '12345',135184)
+
+print(result)
+
+
+# print(client.service.what_is_my_ip())
+
+# class RSgeClient:
+#
+#     def __init__(self, su, sp, user_id, un_id):
+#         self.su = su
+#         self.sp = sp
+#         self.user_id = user_id
+#         self.un_id = un_id
+#
+#         self._client = Client(client)
+#
+#
+#     def auth(self):
+#         pass
+#
+#     def what_is_my_ip(self):
+#
+#         self._client.service.what_is_my_ip()
+#
+#
+#
+# if __name__ == '__main__':
+#     client = RSgeClient("su", "sp", "user", "un")
+#
+#     print(client.what_is_my_ip())
+</file>
+
+<file path="constants.py">
+from enum import IntEnum
+
+
+class WaybillType(IntEnum):
+
+    INTERNAL_TRANSPORT = 1
+    WITH_TRANSPORT = 2
+    WITHOUT_TRANSPORT = 3
+    DISTRIBUTION = 4
+    RETURN = 5
+    SUB_WAYBILL = 6
+
+
+class WaybillStatus(IntEnum):
+
+    SAVED = 0
+    ACTIVE = 1
+    COMPLETED = 2
+    SENT_TO_TRANSPORTER = 8
+    DELETED = -1
+    CANCELED = -2
+
+class WaybillCategory(IntEnum):
+
+    NORMAL = 0
+    WOOD = 1
+
+class VatType(IntEnum):
+
+    STANDARD = 0
+    ZERO = 1
+    EXEMPT = 2
+
+
+class CitizenCheck(IntEnum):
+
+    FOREIGNER = 0
+    GEORGIAN = 1
+
+
+class TransportCostPayer(IntEnum):
+
+    BUYER = 1
+    SELLER = 2
+
+
+class IsMedicine(IntEnum):
+
+    NORMAL = 0
+    MEDICINE = 1
+
+
+class CustomsStatus(IntEnum):
+
+    CONFIRMED = 1
+    REJECTED = 2
+
+
+class IsConfirmed(IntEnum):
+
+    UNCONFIRMED = 0
+    CONFIRMED = 1
+    REJECTED = 2
+
+class BuyerStatus(IntEnum):
+
+    WITHOUT_STATUS = 0
+    MICRO_BUSINESS_STATUS = 1
+    SMALL_BUSINESS_STATUS = 2
+</file>
+
+<file path="rs_client.py">
+from zeep import Client
+from zeep.exceptions import Fault
+from zeep.plugins import HistoryPlugin
+from lxml import etree
+import xml.etree.ElementTree as ET
+
+
+WSDL = "https://services.rs.ge/WayBillService/WayBillService.asmx?WSDL"
+
+
+class RsClient:
+
+    def __init__(self, su, sp):
+
+        self.su = su
+        self.sp = sp
+        self._history = HistoryPlugin()
+        self._client = Client(wsdl=WSDL, plugins=[self._history])
+
+
+    def _auth(self):
+
+        return {
+            "su": self.su,
+            "sp": self.sp
+        }
+
+    def _get_raw_xml(self):
+        # ვიღებთ ნედლ XML response envelope,XML-ს უბრალოდ ტექსტად გვაძლევს (read-only, debugging)
+
+        envelope = self._history.last_received['envelope']
+        return etree.tostring(envelope, pretty_print=True).decode()
+
+    def _extract_xml_response(self, result_text):
+        # ვაანალიზებთ(parse) XML სტრინგს რომელიც დაბრუნებულია და არის envelope-ის შიგნით,
+        # XML ტექსტს პარსავს და გვაძლევს ობიექტს, რომ კოდით წავიკითხოთ
+
+        if result_text is None:
+            return None
+
+        root = ET.fromstring(result_text)
+        return root
+
+
+    def _parse_table_rows(self, root):
+        # ვაკონვერტირებთ XML rows მონაცემთა ცხრილს dict-ის სიად
+        result = []
+        for row in root.findall('Table'):
+            row_dict = {}
+            for field in row:
+                row_dict[field.tag] = field.text
+            result.append(row_dict)
+
+        return result
+        #envelope = self._history.last_received['envelope']
+
+        # print the full raw XML so we can see the structure
+        #print(etree.tostring(envelope, pretty_print=True).decode())
+
+    def what_is_my_ip(self):
+        return self._client.service.what_is_my_ip()
+
+    def get_akciz_codes(self):
+        return self._client.service.get_akciz_codes()
+
+    def get_waybill_types(self):
+        return self._client.service.get_waybill_types(**self._auth())
+
+
+    def verify_credentials(self):
+        try:
+            result = self._client.service.chek_service_user(**self._auth())
+            return result
+        except Exception:
+            return self._parse_datatable()
+    # def get_ser_users(self):
+    #     try:
+    #         result = self._client.service.get_ser_users(
+    #             user_name=self.su,
+    #             user_password=self.sp
+    #         )
+    #         return result
+    #     except Exception:
+    #         return self._parse_datatable()
+
+if __name__ == "__main__":
+    rs_c = RsClient(su="ARCHIL", sp="12345")
+    # print(rs_c.what_is_my_ip())
+    # print(rs_c.verify_credentials())
+    # print(rs_c.get_ser_users())
+    # print(rs_c.get_akciz_codes())
+    result = rs_c.get_waybill_types()
+    print(ET.tostring(result, encoding='unicode'))
+
+#
+# result = Client.service.get_waybill_types(su="satesto2", sp="123456")
+# print(ET.tostring(result, encoding='unicode'))
+</file>
+
+<file path="test.py">
+import xml.etree.ElementTree as ET
+
+xml_string = """
+<NewDataSet>
+    <Table>
+        <user_id>123</user_id>
+        <name>saba</name>
+        <su>satesto2</su>
+    </Table>
+    <Table>
+        <user_id>456</user_id>
+        <name>company</name>
+        <su>tbilisi</su>
+    </Table>
+</NewDataSet>
+"""
+
+root = ET.fromstring(xml_string)
+
+# print(root.tag)
+# print(root[0].tag)
+print(root[1][0].tag)
+print(root[1][1].text)
+
+
+rows = root.findall('Table')
+
+print(len(rows))
+
+for row in rows:
+    print("---")
+
+    for field in row:
+        print(f"{field.tag} - {field.text}")
+
+
+
+def parse_rows(root):
+    result = []
+
+    for row in root.findall('Table'):
+        row_dict = {}
+        for field in row:
+            row_dict[field.tag] = field.text
+        result.append(row_dict)
+
+    return result
+
+rows2 = parse_rows(root)
+
+for rows in rows2:
+    print(rows)
+</file>
+
+<file path="xml_builder.py">
+
+</file>
+
+</files>
