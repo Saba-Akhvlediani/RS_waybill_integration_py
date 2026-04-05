@@ -69,3 +69,14 @@ class BuyerStatus(IntEnum):
     SMALL_BUSINESS_STATUS = 2
 
 
+class PayerType(IntEnum):
+    PHYSICAL_PERSON = 1
+    LEGAL_ENTITY = 2
+    INDIVIDUAL_ENTREPRENEUR = 3
+
+
+class TransportType(IntEnum):
+    AUTO = 1
+    RAILWAY = 2
+    AIR = 3
+    OTHER = 4

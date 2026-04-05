@@ -55,13 +55,6 @@ class RsClient:
         return self._client.service.get_server_time()
 
 
-    # def get_service_users(self, user_name, user_password):
-    #
-    #     return self._call_datatable(
-    #         method_name='get_service_users',
-    #         params={'user_name': user_name, 'user_password': user_password},
-    #         row_tag='ServiceUser',
-    #     )
 
     def get_service_users(self):
 
@@ -283,6 +276,322 @@ class RsClient:
         result = self._client.service.get_print_pdf(waybill_id=waybill_id, **self._auth())
 
         return result.get_print_pdfResult
+
+
+    def get_waybill_by_number(self, waybill_number):
+        """ზედნადების ძებნა ნომრით (არა ID-ით)."""
+        return self._call_datatable('get_waybill_by_number', {
+            'waybill_number': waybill_number,
+            **self._auth(),
+        })
+
+    def get_waybill_goods_list(self, start_date, end_date,
+                                   buyer_tin='', statuses='',
+                                   car_number='', waybill_number=''):
+        """გამყიდველის ზედნადებების საქონლის დეტალური სია."""
+        params = self._builder.build_get_waybill_goods_list(
+            su=self.su, sp=self.sp,
+            start_date=start_date, end_date=end_date,
+            buyer_tin=buyer_tin, statuses=statuses,
+            car_number=car_number, waybill_number=waybill_number,
+            )
+        return self._call_datatable('get_waybill_goods_list', params)
+
+    def get_buyer_waybill_goods_list(self, start_date, end_date,
+                                         seller_tin='', statuses=''):
+        """მყიდველის ზედნადებების საქონლის დეტალური სია."""
+        params = self._builder.build_get_buyer_waybill_goods_list(
+                su=self.su, sp=self.sp,
+                start_date=start_date, end_date=end_date,
+                seller_tin=seller_tin, statuses=statuses,
+            )
+        return self._call_datatable('get_buyer_waybilll_goods_list', params)
+
+        # ──────────────── გაფართოებული queries ────────────────
+
+    def get_waybills_ex(self, start_date, end_date,
+                            buyer_tin='', statuses='', is_confirmed=0):
+        """get_waybills + is_confirmed ფილტრი (0=ყველა, 1=დადასტურებული,2=უარყოფილი)."""
+        params = self._builder.build_get_waybills_ex(
+                su=self.su, sp=self.sp,
+                start_date=start_date, end_date=end_date,
+                buyer_tin=buyer_tin, statuses=statuses,
+                is_confirmed=is_confirmed,
+            )
+        return self._call_datatable('get_waybills_ex', params)
+
+    def get_buyer_waybills_ex(self, start_date, end_date,
+                                  seller_tin='', statuses='', is_confirmed=0):
+        """get_buyer_waybills + is_confirmed ფილტრი."""
+        params = self._builder.build_get_buyer_waybills_ex(
+                su=self.su, sp=self.sp,
+                start_date=start_date, end_date=end_date,
+                seller_tin=seller_tin, statuses=statuses,
+                is_confirmed=is_confirmed,
+            )
+        return self._call_datatable('get_buyer_waybills_ex', params)
+
+    def get_transporter_waybills(self, start_date, end_date,
+                                     buyer_tin='', statuses='', is_confirmed=0):
+        """ზედნადებები სადაც ჩვენ ტრანსპორტიორი ვართ."""
+        params = self._builder.build_get_transporter_waybills(
+                su=self.su, sp=self.sp,
+                start_date=start_date, end_date=end_date,
+                buyer_tin=buyer_tin, statuses=statuses,
+                is_confirmed=is_confirmed,
+            )
+        return self._call_datatable('get_transporter_waybills', params)
+
+    def get_waybills_medicaments_moh(self, create_date_start, create_date_end,
+                                         last_update_date=None):
+        """მედიკამენტების ზედნადებები (ჯანდაცვის სამინისტრო)."""
+        params = {
+                'create_date_s': create_date_start,
+                'create_date_e': create_date_end,
+            }
+        if last_update_date:
+            params['last_update_date'] = last_update_date
+        return self._call_datatable('get_waybills_medicaments_moh', params)
+
+        # ──────────────── კორექტირება ────────────────
+
+    def get_adjusted_waybills(self, waybill_id):
+        """ზედნადების ყველა კორექტირების სია."""
+        return self._call_datatable('get_adjusted_waybills', {
+                'waybill_id': waybill_id,
+                **self._auth(),
+            })
+
+    def get_adjusted_waybill(self, adjustment_id):
+        """კონკრეტული კორექტირებული ზედნადების დეტალები."""
+        return self._call_datatable('get_adjusted_waybill', {
+                'id': adjustment_id,
+                **self._auth(),
+            })
+
+            # ──────────────── ინვოისი ────────────────
+
+    def save_invoice(self, waybill_id, in_inv_id=0):
+        """ზედნადებისთვის ინვოისის მიბმა."""
+        result = self._client.service.save_invoice(
+                waybill_id=waybill_id,
+                in_inv_id=in_inv_id,
+                **self._auth(),
+        )
+        return {
+                'result': result.save_invoiceResult,
+                'out_inv_id': result.out_inv_id,
+            }
+
+            # ──────────────── ტრანსპორტიორი ────────────────
+
+    def save_waybill_transporter(self, waybill_id, car_number, driver_tin,
+                                     driver_name='', trans_id=1, trans_txt='',
+                                     chek_driver_tin=1,
+                                     reception_info='', receiver_info=''):
+        """ტრანსპორტიორის მინიჭება ზედნადებზე."""
+        result = self._client.service.save_waybill_transporter(
+                waybill_id=waybill_id,
+                car_number=car_number,
+                driver_tin=driver_tin,
+                driver_name=driver_name,
+                trans_id=trans_id,
+                trans_txt=trans_txt,
+                chek_driver_tin=chek_driver_tin,
+                reception_info=reception_info,
+                receiver_info=receiver_info,
+                **self._auth(),
+            )
+        return result.save_waybill_transporterResult
+
+    def send_waybill_transporter(self, waybill_id, begin_date):
+        """ტრანსპორტიორი აქტიურებს ზედნადებს."""
+        result = self._client.service.send_waybill_transporter(
+                waybill_id=waybill_id,
+                begin_date=begin_date,
+                **self._auth(),
+            )
+        return {
+                'result': result.send_waybill_transporterResult,
+                'waybill_number': result.waybill_number,
+            }
+
+    def close_waybill_transporter(self, waybill_id, delivery_date,
+                                      reception_info='', receiver_info=''):
+        """ტრანსპორტიორი ხურავს ზედნადებს (მიწოდება დასრულდა)."""
+        result = self._client.service.close_waybill_transporter(
+                waybill_id=waybill_id,
+                reception_info=reception_info,
+                receiver_info=receiver_info,
+                delivery_date=delivery_date,
+                **self._auth(),
+        )
+        return result.close_waybill_transporterResult
+
+            # ──────────────── საცნობარო მონაცემები ────────────────
+
+    def get_akciz_codes(self, search_text=''):
+        """აქციზის კოდების სია (ალკოჰოლი, თამბაქო...)."""
+        return self._call_datatable('get_akciz_codes', {
+                's_text': search_text,
+                **self._auth(),
+            })
+
+    def get_wood_types(self):
+        """ხე-ტყის ტიპების სია."""
+        return self._call_datatable('get_wood_types', self._auth())
+
+    def is_vat_payer(self, un_id):
+        """დღგ-ს გადამხდელია თუ არა (un_id-ით)."""
+        result = self._client.service.is_vat_payer(un_id=un_id,
+                                                       **self._auth())
+        return result.is_vat_payerResult
+
+    def get_payer_type_from_un_id(self, un_id):
+        """გადამხდელის ტიპი un_id-ით (ფიზ. პირი, იურიდიული, ინდ. მეწარმე)."""
+        result = self._client.service.get_payer_type_from_un_id(
+                un_id=un_id, **self._auth(),
+            )
+        return result.get_payer_type_from_un_idResult
+
+            # ──────────────── შაბლონები ────────────────
+
+    def save_waybill_template(self, template_name, waybill_xml):
+        """ზედნადების შაბლონად შენახვა."""
+        result = self._client.service.save_waybill_tamplate(
+                v_name=template_name,
+                waybill=waybill_xml,
+                **self._auth(),
+            )
+        return result.save_waybill_tamplateResult
+
+    def get_waybill_templates(self):
+        """ყველა შაბლონის სია."""
+        try:
+            result = self._client.service.get_waybill_tamplates(**self._auth())
+            return result
+
+        except Exception:
+            return self._parser.parse_datatable(self._last_envelope())
+
+
+    def get_waybill_template(self, template_id):
+        """კონკრეტული შაბლონის მიღება."""
+        try:
+            result = self._client.service.get_waybill_tamplate(
+            id=template_id, **self._auth(),
+            )
+            return result
+        except Exception:
+            return self._parser.parse_datatable(self._last_envelope())
+
+
+    def delete_waybill_template(self, template_id):
+        """შაბლონის წაშლა."""
+        result = self._client.service.delete_waybill_tamplate(
+        id=template_id, **self._auth(),
+        )
+        return result.delete_waybill_tamplateResult
+
+
+    def get_c_waybill(self, start_date, end_date):
+        """შაბლონის ზედნადებები თარიღის მიხედვით."""
+        try:
+            result = self._client.service.get_c_waybill(
+            s_dt=start_date, e_dt=end_date, **self._auth(),
+            )
+            return result
+        except Exception:
+            return self._parser.parse_datatable(self._last_envelope())
+
+    # ──────────────── შტრიხკოდები ────────────────
+
+
+    def save_bar_code(self, bar_code, goods_name, unit_id=0, unit_txt='',
+                  akciz_id=0):
+        """შტრიხკოდის რეგისტრაცია."""
+        result = self._client.service.save_bar_code(
+            bar_code=bar_code,
+            goods_name=goods_name,
+            unit_id=unit_id,
+            unit_txt=unit_txt,
+            a_id=akciz_id,
+            **self._auth(),
+            )
+        return result.save_bar_codeResult
+
+
+    def delete_bar_code(self, bar_code):
+        """შტრიხკოდის წაშლა."""
+        result = self._client.service.delete_bar_code(
+        bar_code=bar_code, **self._auth(),
+        )
+        return result.delete_bar_codeResult
+
+
+    def get_bar_codes(self, bar_code=''):
+        """შტრიხკოდების ძებნა."""
+        try:
+            result = self._client.service.get_bar_codes(
+            bar_code=bar_code, **self._auth(),
+            )
+            return result
+        except Exception:
+            return self._parser.parse_datatable(self._last_envelope())
+
+        # ──────────────── მანქანის ნომრები ────────────────
+
+
+    def save_car_number(self, car_number):
+        """მანქანის ნომრის რეგისტრაცია."""
+        result = self._client.service.save_car_numbers(
+        car_number=car_number, **self._auth(),
+        )
+        return result.save_car_numbersResult
+
+
+    def delete_car_number(self, car_number):
+        """მანქანის ნომრის წაშლა."""
+        result = self._client.service.delete_car_numbers(
+        car_number=car_number, **self._auth(),
+        )
+        return result.delete_car_numbersResult
+
+
+    def get_car_numbers(self):
+        """რეგისტრირებული მანქანის ნომრების სია."""
+        try:
+            result = self._client.service.get_car_numbers(**self._auth())
+            return result
+        except Exception:
+            return self._parser.parse_datatable(self._last_envelope())
+
+    # ──────────────── მომხმარებლის მართვა ────────────────
+
+
+    def create_service_user(self, user_name, user_password, ip='', name=''):
+        """ახალი სერვისის მომხმარებლის შექმნა."""
+        result = self._client.service.create_service_user(
+            user_name=user_name,
+            user_password=user_password,
+            ip=ip,
+            name=name,
+            **self._auth(),
+        )
+        return result.create_service_userResult
+
+
+    def update_service_user(self, user_name, user_password, ip='', name=''):
+        """სერვისის მომხმარებლის განახლება."""
+        result = self._client.service.update_service_user(
+            user_name=user_name,
+            user_password=user_password,
+            ip=ip,
+            name=name,
+            **self._auth(),
+        )
+        return result.update_service_userResult
+
 
 
 if __name__ == "__main__":
